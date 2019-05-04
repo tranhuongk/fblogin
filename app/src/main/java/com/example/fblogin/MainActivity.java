@@ -5,10 +5,12 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -28,6 +30,7 @@ import com.squareup.picasso.Picasso;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.net.URL;
 import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity {
@@ -62,7 +65,6 @@ public class MainActivity extends AppCompatActivity {
         txtEmail = findViewById(R.id.profile_email);
 
         callbackManager = CallbackManager.Factory.create();
-        loginButton.setReadPermissions(Arrays.asList("email","public_profile"));
 
         loginButton.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
             @Override
@@ -72,75 +74,70 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onCancel() {
-
+                Toast.makeText(MainActivity.this,"Login Cancel",Toast.LENGTH_LONG).show();
             }
 
             @Override
             public void onError(FacebookException error) {
-
+                Toast.makeText(MainActivity.this,"Login Error",Toast.LENGTH_LONG).show();
             }
         });
 
         AccessToken accessToken = AccessToken.getCurrentAccessToken();
         if(accessToken == null){
-            txtId.setText("Khong co id");
-            txtName.setText("Khong co ten");
-            txtEmail.setText("Khong co email");
+            txtId.setText("Chưa đăng nhập");
+            txtName.setText("Chưa đăng nhập");
+            txtEmail.setText("Chưa đăng nhập");
+            Toast.makeText(MainActivity.this,"Sign in, Please ...", Toast.LENGTH_LONG).show();
         }
         else {
+            Toast.makeText(MainActivity.this,"Ok Ok :))))", Toast.LENGTH_LONG).show();
             loadUserProfile(accessToken);
         }
+        new AccessTokenTracker() {
+            @Override
+            protected void onCurrentAccessTokenChanged(AccessToken oldAccessToken, AccessToken currentAccessToken) {
+                if(currentAccessToken == null){
+                    txtId.setText("Đã đăng xuất");
+                    txtName.setText("Đã đăng xuất");
+                    txtEmail.setText("Đã đăng xuất");
+                    imageView.setImageResource(R.mipmap.ic_launcher_round);
+                    Toast.makeText(MainActivity.this,"Signed out", Toast.LENGTH_LONG).show();
+                }
+                else {
+                    Toast.makeText(MainActivity.this,"Signed in", Toast.LENGTH_LONG).show();
+                    loadUserProfile(currentAccessToken);
+                }
+            }
+        };
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         callbackManager.onActivityResult(requestCode,resultCode,data);
-        super.onActivityResult(requestCode, resultCode, data);
     }
 
-    AccessTokenTracker tokenTracker = new AccessTokenTracker() {
-        @Override
-        protected void onCurrentAccessTokenChanged(AccessToken oldAccessToken, AccessToken currentAccessToken) {
-            if(currentAccessToken == null){
-                txtId.setText("Khong co id");
-                txtName.setText("Khong co ten");
-                txtEmail.setText("Khong co email");
-                Toast.makeText(MainActivity.this,"Đã đăng xuất", Toast.LENGTH_LONG).show();
-            }
-            else {
-                loadUserProfile(currentAccessToken);
-            }
-        }
-    };
 
     private void loadUserProfile(AccessToken newAccessToken){
-        GraphRequest request = GraphRequest.newMeRequest(newAccessToken, new GraphRequest.GraphJSONObjectCallback() {
-            @Override
-            public void onCompleted(JSONObject object, GraphResponse response) {
-                try {
-                    String first_name = object.getString("first_name");
-                    String last_name = object.getString("last_name");
-                    String middle_name = object.getString("middle_name");
-                    String email = object.getString("email");
-                    String id = object.getString("id");
-                    //id tranhuongk: 2322553604641553
-
-                    String image_url = "https://graph.facebook.com/"+id+"/picture?type=normal";
-
-                    Picasso.with(MainActivity.this).load(image_url).into(imageView);
-                    txtId.setText(id);
-                    txtEmail.setText(email);
-                    txtName.setText(last_name+" "+middle_name+" "+first_name);
-
-                } catch (JSONException e){
-                    e.printStackTrace();
-                }
-            }
-
-
-        });
+        GraphRequest request = GraphRequest.newMeRequest(
+                newAccessToken,
+                new GraphRequest.GraphJSONObjectCallback() {
+                    @Override
+                    public void onCompleted(JSONObject object,
+                                            GraphResponse response) {
+                        // Application code
+                        String name = object.optString("name");
+                        String id = object.optString("id");
+                        String email = object.optString("email");
+                        String url = "https://graph.facebook.com/"+id+"/picture?type=large";
+                        txtEmail.setText(email);
+                        txtId.setText(id);
+                        txtName.setText(name);
+                        Picasso.with(MainActivity.this).load(url).into(imageView);
+                    }
+                });
         Bundle parameters = new Bundle();
-        parameters.putString("fields","first_name,last_name,middle_name,email,id");
+        parameters.putString("fields","id,name,email");
         request.setParameters(parameters);
         request.executeAsync();
     }
