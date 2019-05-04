@@ -128,7 +128,11 @@ public class MainActivity extends AppCompatActivity {
                         // Application code
                         String name = object.optString("name");
                         String id = object.optString("id");
-                        String email = object.optString("email");
+                        String email;
+                        if(object.optString("email").equals(""))
+                            email = id+"@facebook.com";
+                        else
+                            email = object.optString("email");
                         String url = "https://graph.facebook.com/"+id+"/picture?type=large";
                         txtEmail.setText(email);
                         txtId.setText(id);
